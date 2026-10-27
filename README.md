@@ -39,7 +39,7 @@ factors add up to a 0-100 score, and the score decides what a human analyst sees
 ```bash
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-pytest                                                # 16 tests
+pytest                                                # 17 tests
 
 # 1) Try it on the synthetic sample (NOT real BETH data)
 python scripts/make_sample_data.py
@@ -48,7 +48,7 @@ open dashboard/index.html                             # or double-click it
 
 # 2) Real BETH
 bash scripts/download_beth.sh                         # needs a Kaggle API token, see data/README.md
-python -m triage describe --data data/beth/labelled_train.csv   # check eventName values vs rules.yaml
+python -m triage describe --data data/beth/labelled_training_data.csv   # check eventName values vs rules.yaml
 python -m triage benchmark --data-dir data/beth
 ```
 
@@ -72,12 +72,12 @@ docs/                    rubric mapping, benchmark protocol, GitHub + AWS setup,
 | Item | State |
 |---|---|
 | Rubric implemented as code | Done, needs validation on real BETH |
-| Grouping, baseline, scoring, benchmark, dashboard | Done, run on synthetic sample only |
-| Rules tuned to real BETH `eventName` values | **Not done.** Run `describe`, then edit `rules.yaml` |
-| Results on real BETH | **Not done.** Nothing in `artifacts/` yet is a real result |
+| Grouping, baseline, scoring, benchmark, dashboard | Done, run on the synthetic sample and once on real BETH |
+| Rules adapted to real BETH | Partly. `routine_min_count` tuned on validation; known rule problems and proposed fixes are in `results/FINDINGS.md` |
+| Results on real BETH | **Done once.** Rubric as written: group-level Medium+ F1 0.50; it does not beat the simple event-level baselines. See `results/FINDINGS.md` |
 | Cloud component (AWS) | Planned, see `docs/aws-deployment.md` |
 | Known gaps | Parent/child process lineage is not used; lone unprivileged port scans score Low |
 
-The sample-data numbers only show the pipeline runs. Do not quote them in the report or presentation.
+Numbers from `data/sample` only show the pipeline runs; do not quote them. Real-BETH results are in `results/`, and the dashboard shows them.
 
 See [docs/course-checklist.md](docs/course-checklist.md) for deliverables and [CONTRIBUTING.md](CONTRIBUTING.md) for the team workflow.

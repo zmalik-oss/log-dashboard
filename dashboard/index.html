@@ -86,6 +86,8 @@
   function header() {
     return '<h1>Event risk triage</h1><p class="sub">Each row is one action group (related events from one process). Scores follow the four-factor rubric; tiers are Low &lt; ' +
       R.meta.tiers.medium_min + ', Medium ' + R.meta.tiers.medium_min + '&ndash;' + (R.meta.tiers.high_min - 1) + ', High &ge; ' + R.meta.tiers.high_min + '.</p>' +
+      (R.meta.n_events ? '<p class="sub" style="margin-top:-8px">Data: ' + esc(R.meta.source) + ', ' + R.meta.n_events.toLocaleString() + ' events in ' + R.meta.n_groups.toLocaleString() +
+        ' action groups. Routine threshold ' + R.meta.routine_min_count + (R.meta.network_burst_min_failures ? '; optional network-burst rule on (' + R.meta.network_burst_min_failures + '+ failed calls)' : '; rubric as written') + '.</p>' : '') +
       (R.meta.is_sample ? '<div class="banner">Synthetic sample data. These results test the pipeline and are not BETH results.</div>' : '') +
       '<div class="strip">' +
       ["high", "medium", "low"].map(function (t) {

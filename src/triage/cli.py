@@ -20,7 +20,25 @@ from .features import add_event_features
 from .loader import describe, load_beth
 from .scoring import score_events
 
-SPLITS = {"train": "labelled_train.csv", "val": "labelled_validation.csv", "test": "labelled_test.csv"}
+# The Kaggle download names the splits *_training_data / *_validation_data / *_testing_data.
+# The synthetic sample uses the shorter names, so both are accepted (first match wins).
+SPLITS = {
+    "train": ["labelled_training_data.csv", "labelled_train.csv"],
+    "val": ["labelled_validation_data.csv", "labelled_validation.csv"],
+    "test": ["labelled_testing_data.csv", "labelled_test.csv"],
+}
+
+
+def resolve_splits(data_dir: pathlib.Path) -> dict:
+    found = {}
+    for split, names in SPLITS.items():
+        for n in names:
+            if (data_dir / n).exists():
+                found[split] = data_dir / n
+                break
+        else:
+            found[split] = data_dir / names[0]   # reported as missing by the caller
+    return found
 
 
 def cmd_describe(a) -> int:
@@ -44,7 +62,7 @@ def cmd_score(a) -> int:
 def cmd_benchmark(a) -> int:
     rules = load_rules(a.rules)
     d = pathlib.Path(a.data_dir)
-    paths = {k: d / v for k, v in SPLITS.items()}
+    paths = resolve_splits(d)
     for k, p in paths.items():
         if not p.exists():
             print(f"missing {k} split: {p}\nRun scripts/download_beth.sh, or use --data-dir data/sample.",
@@ -83,7 +101,10 @@ def cmd_benchmark(a) -> int:
     is_sample = a.sample or "sample" in str(d)
     meta = {"source": "synthetic sample data (not BETH)" if is_sample else "BETH test split",
             "is_sample": bool(is_sample), "rules": "config/rules.yaml",
-            "tiers": rules["tiers"], "gap_seconds": rules["grouping"]["gap_seconds"]}
+            "tiers": rules["tiers"], "gap_seconds": rules["grouping"]["gap_seconds"],
+            "n_events": int(fm["workload"]["events"]), "n_groups": int(fm["workload"]["groups"]),
+            "routine_min_count": rules["baseline"]["routine_min_count"],
+            "network_burst_min_failures": rules["ioc"].get("network_burst_min_failures")}
     export_dashboard(g_test, results, meta, a.dashboard_dir)
 
     print(f"\nTest split: {fm['workload']['groups']:,} groups -> "

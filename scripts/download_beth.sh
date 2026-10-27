@@ -15,4 +15,4 @@ kaggle datasets download -d katehighnam/beth-dataset -p data/beth --unzip
 echo
 ls -lh data/beth
 echo
-echo "Next: python -m triage describe --data data/beth/labelled_train.csv"
+echo "Next: python -m triage describe --data data/beth/labelled_training_data.csv"

@@ -3,8 +3,8 @@
 How each level in the team's framework is implemented. Code: `src/triage/scoring.py`. Settings: `config/rules.yaml`.
 
 Terms: an **action group** is a set of events from one host and process, each within 5 seconds of the last.
-**Routine** means the (process, event) or (process, file) pair appeared at least 50 times in the training
-split. **Non-routine** is the opposite. **Failed** means `returnValue < 0`.
+**Routine** means the (process, event) or (process, file) pair appeared at least 10 times in the training
+split (`baseline.routine_min_count`, tuned on validation; see `results/FINDINGS.md`). **Non-routine** is the opposite. **Failed** means `returnValue < 0`.
 
 ## Suspicious behavior (max 40)
 
@@ -63,7 +63,9 @@ report calls them final.
 
 1. **Labels as input.** The rubric says not to rely *solely* on `sus`/`evil`. We use them for no scoring at all, so the benchmark is not circular. If the team wants them as one weak input, the benchmark must change (hold them out of the evaluation).
 2. **The sshd example.** The rubric says to flag it for human review. Our scorer gives it Low, and the dashboard's "label disagreements" tab puts it in front of a human. Decide whether that satisfies the intent.
-3. **Defining "normal".** Routine = 50+ occurrences in training. This is the main tuning knob (`baseline.routine_min_count`); too low hides attacks, too high floods analysts.
+3. **Defining "normal".** Routine = 10+ occurrences in training. This is the main tuning knob (`baseline.routine_min_count`); too low hides attacks, too high floods analysts. On real BETH, 50 gave 6.1% false alarms on attack-free validation groups and 10 gave 1.9%.
 4. **BETH `eventName` coverage.** The syscall lists were written from general knowledge of Linux and eBPF tracing, not from the data. Run `describe` on real BETH and update `risky_syscalls` and `path_events`.
 5. **Process-name trust.** An attacker who names a binary `sshd` inherits sshd's baseline. Worth a sentence in the report's limitations.
 6. **Not implemented:** parent/child lineage (a child of a flagged process is not boosted) and time-of-day features.
+7. **Optional network-burst indicator (off by default).** On real BETH the rubric as written rates a flood of failed connections as Low. `ioc.network_burst_min_failures` adds a burst indicator; it is not part of the written rubric, so turning it on needs the team's approval (and Iman's).
+8. **Rule fixes found by error analysis on test** (not yet applied): treat not-found (-2) lookups, such as the dynamic linker probing `/etc/ld.so.preload`, as non-suspicious, and exclude in-progress (-114/-115) connect codes from "failed". Details in `results/FINDINGS.md`.

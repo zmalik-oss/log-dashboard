@@ -21,6 +21,7 @@ INDICATOR_TEXT = {
     "log_tampering": "modified or deleted log files",
     "credential_file_modified": "modified a credential or SSH config file",
     "kernel_module_loaded": "loaded a kernel module",
+    "network_failure_burst": "very large burst of failed network calls",
     "rare_process": "process rarely or never seen in baseline",
 }
 
@@ -64,6 +65,7 @@ def _event_flags(df: pd.DataFrame, bl: Baseline, rules: dict) -> pd.DataFrame:
     f["ioc_cred_modify"] = f["crit_mod_succ"] & entry.isin(ioc["credential_entries"])
     f["ioc_module_load"] = df["eventName"].isin(ioc["module_events"]) & ~failed & ~routine_pair
     f["failed_nr"] = f["hi_fail"] | f["med_fail"] | f["sens_nr_fail"]
+    f["net_fail_nr"] = f["med_fail"] & (df["category"] == "network")
     return f
 
 
@@ -81,8 +83,9 @@ def score_events(df_feat: pd.DataFrame, bl: Baseline, rules: dict):
     df = assign_groups(df_feat, rules["grouping"]["gap_seconds"])
     f = _event_flags(df, bl, rules)
     tmp = pd.concat([df[["group_id"]], f], axis=1)
-    G = tmp.groupby("group_id")[[c for c in f.columns if c != "failed_nr"]].any()
+    G = tmp.groupby("group_id")[[c for c in f.columns if c not in ("failed_nr", "net_fail_nr")]].any()
     failed_count = tmp.groupby("group_id")["failed_nr"].sum()
+    net_fail_count = tmp.groupby("group_id")["net_fail_nr"].sum()
 
     meta = df.groupby("group_id").agg(
         hostName=("hostName", "first"), processId=("processId", "first"),
@@ -103,7 +106,11 @@ def score_events(df_feat: pd.DataFrame, bl: Baseline, rules: dict):
     escalation = (meta["first_uid"] != 0) & root_here
     esc_unexp = escalation & (base_root.isna() | (base_root < root_low) | G["priv_succ_nr"])
     ioc_priv = esc_unexp & G["priv_succ_nr"]
-    n_ioc = G[IOC_COLS].sum(axis=1) + ioc_priv.astype(int)
+    # Optional extension, OFF by default (ioc.network_burst_min_failures: null). It is not part of the
+    # team's written rubric, so enabling it must be a team decision. See docs/rubric-to-rules.md.
+    burst_min = rules["ioc"].get("network_burst_min_failures")
+    burst = (net_fail_count >= burst_min) if burst_min else pd.Series(False, index=G.index)
+    n_ioc = G[IOC_COLS].sum(axis=1) + ioc_priv.astype(int) + burst.astype(int)
     priv_any = G["priv_succ_nr"] | G["priv_fail_nr"] | esc_unexp
 
     behavior = np.select(
@@ -127,6 +134,7 @@ def score_events(df_feat: pd.DataFrame, bl: Baseline, rules: dict):
         "log_tampering": G["ioc_log_tamper"],
         "credential_file_modified": G["ioc_cred_modify"],
         "kernel_module_loaded": G["ioc_module_load"],
+        "network_failure_burst": burst,
         "rare_process": rare & (G["risky_any"] | G["sens_nr"]),
     })
     n_ind = ind.sum(axis=1)
@@ -175,7 +183,7 @@ def _reasons(r) -> dict:
     beh = {40: "Confirmed-malicious signature: " + "; ".join(
                n for i, n in zip(ind, names) if i in
                ("exec_from_writable_dir", "log_tampering", "credential_file_modified",
-                "kernel_module_loaded", "privilege_escalation")),
+                "kernel_module_loaded", "network_failure_burst", "privilege_escalation")),
            30: "Successful risky action that is not routine for this process",
            20: "Attempted risky or sensitive action that failed or repeated",
            10: "Unusual activity not seen in the baseline",

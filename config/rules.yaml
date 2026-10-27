@@ -9,7 +9,11 @@ tiers:                    # from the project rubric (Iman's framework)
   high_min: 70            # 70-100 -> high-priority alert
 
 baseline:                 # learned from the training split, WITHOUT using sus/evil labels
-  routine_min_count: 50   # (process,event) or (process,path) pairs seen this often in training are "routine"
+  # (process,event) or (process,path) pairs seen this often in training are "routine".
+  # Tuned on the attack-free VALIDATION split only: the largest value that keeps validation Medium+
+  # alerts under 2% of action groups. The sweep (50 -> 6.1%, 20 -> 2.4%, 10 -> 1.9%, 5 -> 1.7%, 1 -> 1.2%)
+  # is in docs/benchmark-protocol.md. The shipped default of 50 gave 6.1% false alarms on real BETH.
+  routine_min_count: 10
   rare_process_max_count: 5   # processes seen fewer times than this in training are "rare"
   root_low_fraction: 0.05     # processes that run as root in < 5% of baseline events normally run unprivileged
 
@@ -21,7 +25,7 @@ risky_syscalls:
   privilege_change: [setuid, setgid, setreuid, setregid, setresuid, setresgid, setfsuid, setfsgid, capset, commit_creds]
   process_control: [ptrace, process_vm_writev, process_vm_readv, kill, tkill, tgkill]
   system_modification: [init_module, finit_module, delete_module, mount, umount2, chroot, pivot_root]
-  file_modification: [unlink, unlinkat, security_inode_unlink, rename, renameat, renameat2, security_inode_rename, chmod, fchmodat, chown, fchownat]
+  file_modification: [unlink, unlinkat, security_inode_unlink, rename, renameat, renameat2, security_inode_rename, chmod, fchmod, fchmodat, chown, fchown, lchown, fchownat]
   execution: [execve, execveat, security_bprm_check]
   network: [bind, listen, connect, accept, accept4, security_socket_connect, security_socket_bind, security_socket_listen, security_socket_accept]
 
@@ -90,3 +94,8 @@ ioc:
   log_entries: [/var/log/]
   credential_entries: [/etc/shadow, /etc/passwd, /etc/sudoers, authorized_keys, /etc/ssh/sshd_config, /etc/ld.so.preload]
   module_events: [init_module, finit_module]
+  # OPTIONAL, OFF BY DEFAULT, not part of the team's written rubric. When set to a number, an action group
+  # with at least that many failed non-routine network calls (connect/bind/accept...) counts as an
+  # indicator of compromise (port-scan or brute-force burst). The largest burst in attack-free train and
+  # validation data is 16, so 100 is a defensible value. Turning it on is a team decision.
+  network_burst_min_failures: null

@@ -112,3 +112,21 @@ def test_label_disagreements_are_surfaced(scored):
     procs = set(low_but_evil["processName"])
     assert {"portscan", "sshd"} <= procs        # port scans + the rubric's sshd example
     assert (groups[groups["processId"] == 1407]["tier"] == "low").all()
+
+
+# ---- optional network-burst indicator (off by default) -----------------------
+def test_network_burst_is_off_by_default_and_opt_in(rules, scored):
+    groups, _, bl, fte = scored
+    assert rules["ioc"].get("network_burst_min_failures") is None
+    assert (_by_proc(groups, "portscan")["tier"] == "low").all()
+
+    import copy
+    on = copy.deepcopy(rules)
+    on["ioc"]["network_burst_min_failures"] = 10      # the sample scanner makes exactly 10 failed connects
+    g2, _ = score_events(fte, bl, on)
+    scan = _by_proc(g2, "portscan")
+    assert (scan["tier"] == "medium").all()
+    assert all("network_failure_burst" in i for i in scan["indicators"])
+    # everything else is untouched by switching it on
+    other = g2["processName"] != "portscan"
+    assert g2.loc[other, "score"].tolist() == groups.loc[other, "score"].tolist()
