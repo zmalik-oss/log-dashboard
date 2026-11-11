@@ -16,4 +16,11 @@ BETH Risk Triage group project.
 All 17 automated tests passed during local testing.
 
 ## Screenshots
-Dashboard screenshots will be added here.
+
+### Interactive Streamlit Dashboard
+
+![Streamlit Dashboard Overview](screenshots/dashboard_overview.jpg)
+
+### Original Security Risk Triage Dashboard
+
+![Original Dashboard](screenshots/original_dashboard.jpg)
