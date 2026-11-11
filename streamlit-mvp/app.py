@@ -13,7 +13,7 @@ st.set_page_config(
     layout="wide",
 )
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "artifacts" / "baseline.json"
 
 st.title("🛡️ BETH Security Risk Triage")
